@@ -1,0 +1,77 @@
+# Repro for azure/bicep-deploy @ 7443f92 (PR #327): Azure's error is hidden on deployment stack operations.
+# No Azure credentials are involved. A stand-in `az` returns an invalid token, so Azure Resource Manager
+# rejects the first request with 401 InvalidAuthenticationToken. Compare each step's error annotation.
+name: Repro - stack errors hidden (bicep-deploy 7443f92)
+on: [push, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  repro:
+    runs-on: ubuntu-latest
+    env:
+      SUB: 00000000-0000-0000-0000-000000000000
+      RG: repro-rg
+    steps:
+      - name: Setup - empty template + stand-in az that returns an invalid token
+        run: |
+          echo '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#","contentVersion":"1.0.0.0","resources":[]}' > main.json
+          mkdir -p "$RUNNER_TEMP/bin"
+          cat > "$RUNNER_TEMP/bin/az" <<'EOF'
+          #!/bin/sh
+          echo '{"accessToken":"invalid-token-for-repro","expires_on":1893456000,"expiresOn":"2030-01-01 00:00:00.000000","tokenType":"Bearer"}'
+          EOF
+          chmod +x "$RUNNER_TEMP/bin/az"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: 1 stack whatIf @7443f92 (pre-release)
+        if: always()
+        uses: azure/bicep-deploy@7443f922e2ecbbf17fae22ece9c1fcf6d885b207
+        with:
+          type: deploymentStack
+          operation: whatIf
+          name: repro-stack
+          scope: resourceGroup
+          subscription-id: ${{ env.SUB }}
+          resource-group-name: ${{ env.RG }}
+          template-file: main.json
+          action-on-unmanage-resources: delete
+          deny-settings-mode: none
+
+      - name: 2 stack create @7443f92 (pre-release)
+        if: always()
+        uses: azure/bicep-deploy@7443f922e2ecbbf17fae22ece9c1fcf6d885b207
+        with:
+          type: deploymentStack
+          operation: create
+          name: repro-stack
+          scope: resourceGroup
+          subscription-id: ${{ env.SUB }}
+          resource-group-name: ${{ env.RG }}
+          template-file: main.json
+          action-on-unmanage-resources: delete
+          deny-settings-mode: none
+
+      - name: 3 control - stack create @v2 (released)
+        if: always()
+        uses: azure/bicep-deploy@v2
+        with:
+          type: deploymentStack
+          operation: create
+          name: repro-stack
+          scope: resourceGroup
+          subscription-id: ${{ env.SUB }}
+          resource-group-name: ${{ env.RG }}
+          template-file: main.json
+          action-on-unmanage-resources: delete
+          deny-settings-mode: none
+
+      - name: 4 control - deployment whatIf @7443f92 (pre-release)
+        if: always()
+        uses: azure/bicep-deploy@7443f922e2ecbbf17fae22ece9c1fcf6d885b207
+        with:
+          type: deployment
+          operation: whatIf
+          scope: resourceGroup
+          subscription-id: ${{ env.SUB }}
+          resource-group-name: ${{ env.RG }}
+          template-file: main.json
