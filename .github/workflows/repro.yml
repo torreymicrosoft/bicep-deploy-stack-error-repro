@@ -1,6 +1,6 @@
 # Repro for azure/bicep-deploy @ 7443f92 (PR #327): Azure's error is hidden on deployment stack operations.
-# No Azure credentials are involved. A stand-in `az` returns an invalid token, so Azure Resource Manager
-# rejects the first request with 401 InvalidAuthenticationToken. Compare each step's error annotation.
+# No Azure credentials are involved. A stand-in `az` supplies a dummy token and the subscription ID is all zeros,
+# so Azure Resource Manager rejects the first request with 400 InvalidSubscriptionId. Compare each step's error annotation.
 name: Repro - stack errors hidden (bicep-deploy 7443f92)
 on: [push, workflow_dispatch]
 permissions:
