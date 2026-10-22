@@ -1,7 +1,8 @@
-# Repro for azure/bicep-deploy @ 7443f92 (PR #327): Azure's error is hidden on deployment stack operations.
+# Re-run of the repro pinned to azure/bicep-deploy @ bbddabf (branch ant/testing, which adds error diagnostics logging
+# to tryWithErrorHandling), as Anthony Martin asked on 2026-10-22. main still pins 7443f92 (PR #327) for issue #358.
 # No Azure credentials are involved. A stand-in `az` supplies a dummy token and the subscription ID is all zeros,
 # so Azure Resource Manager rejects the first request with 400 InvalidSubscriptionId. Compare each step's error annotation.
-name: Repro - stack errors hidden (bicep-deploy 7443f92)
+name: Repro - stack errors (bicep-deploy bbddabf, ant/testing)
 on: [push, workflow_dispatch]
 permissions:
   contents: read
@@ -23,9 +24,9 @@ jobs:
           chmod +x "$RUNNER_TEMP/bin/az"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
-      - name: 1 stack whatIf @7443f92 (pre-release)
+      - name: 1 stack whatIf @bbddabf (ant/testing)
         if: always()
-        uses: azure/bicep-deploy@7443f922e2ecbbf17fae22ece9c1fcf6d885b207
+        uses: azure/bicep-deploy@bbddabf6d7b1a425a59cb4cc62862683eae15e15
         with:
           type: deploymentStack
           operation: whatIf
@@ -37,9 +38,9 @@ jobs:
           action-on-unmanage-resources: delete
           deny-settings-mode: none
 
-      - name: 2 stack create @7443f92 (pre-release)
+      - name: 2 stack create @bbddabf (ant/testing)
         if: always()
-        uses: azure/bicep-deploy@7443f922e2ecbbf17fae22ece9c1fcf6d885b207
+        uses: azure/bicep-deploy@bbddabf6d7b1a425a59cb4cc62862683eae15e15
         with:
           type: deploymentStack
           operation: create
@@ -65,9 +66,9 @@ jobs:
           action-on-unmanage-resources: delete
           deny-settings-mode: none
 
-      - name: 4 control - deployment whatIf @7443f92 (pre-release)
+      - name: 4 control - deployment whatIf @bbddabf (ant/testing)
         if: always()
-        uses: azure/bicep-deploy@7443f922e2ecbbf17fae22ece9c1fcf6d885b207
+        uses: azure/bicep-deploy@bbddabf6d7b1a425a59cb4cc62862683eae15e15
         with:
           type: deployment
           operation: whatIf
