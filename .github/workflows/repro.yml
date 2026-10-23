@@ -1,7 +1,10 @@
-# Repro for azure/bicep-deploy @ 7443f92 (PR #327): Azure's error is hidden on deployment stack operations.
+# Re-run of the repro pinned to azure/bicep-deploy @ 01859ee (PR #360 "Fix error reporting", head of ant/testing),
+# as Anthony Martin asked on 2026-10-23. main still pins 7443f92 (PR #327) for issues #358 and #350.
+# #360 also moves deployments to @azure/arm-resourcesdeployments 2.0.0, so step 4 is no longer a control, and
+# steps 5 to 7 cover the other operations #360 changes.
 # No Azure credentials are involved. A stand-in `az` supplies a dummy token and the subscription ID is all zeros,
 # so Azure Resource Manager rejects the first request with 400 InvalidSubscriptionId. Compare each step's error annotation.
-name: Repro - stack errors hidden (bicep-deploy 7443f92)
+name: Repro - stack errors (bicep-deploy 01859ee, PR 360)
 on: [push, workflow_dispatch]
 permissions:
   contents: read
@@ -23,9 +26,9 @@ jobs:
           chmod +x "$RUNNER_TEMP/bin/az"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
-      - name: 1 stack whatIf @7443f92 (pre-release)
+      - name: 1 stack whatIf @01859ee (PR 360)
         if: always()
-        uses: azure/bicep-deploy@7443f922e2ecbbf17fae22ece9c1fcf6d885b207
+        uses: azure/bicep-deploy@01859ee1fa3dd81eca9f2fe88da19faf52a0b532
         with:
           type: deploymentStack
           operation: whatIf
@@ -37,9 +40,9 @@ jobs:
           action-on-unmanage-resources: delete
           deny-settings-mode: none
 
-      - name: 2 stack create @7443f92 (pre-release)
+      - name: 2 stack create @01859ee (PR 360)
         if: always()
-        uses: azure/bicep-deploy@7443f922e2ecbbf17fae22ece9c1fcf6d885b207
+        uses: azure/bicep-deploy@01859ee1fa3dd81eca9f2fe88da19faf52a0b532
         with:
           type: deploymentStack
           operation: create
@@ -65,12 +68,48 @@ jobs:
           action-on-unmanage-resources: delete
           deny-settings-mode: none
 
-      - name: 4 control - deployment whatIf @7443f92 (pre-release)
+      - name: 4 deployment whatIf @01859ee (PR 360)
         if: always()
-        uses: azure/bicep-deploy@7443f922e2ecbbf17fae22ece9c1fcf6d885b207
+        uses: azure/bicep-deploy@01859ee1fa3dd81eca9f2fe88da19faf52a0b532
         with:
           type: deployment
           operation: whatIf
+          scope: resourceGroup
+          subscription-id: ${{ env.SUB }}
+          resource-group-name: ${{ env.RG }}
+          template-file: main.json
+
+      - name: 5 stack validate @01859ee (PR 360)
+        if: always()
+        uses: azure/bicep-deploy@01859ee1fa3dd81eca9f2fe88da19faf52a0b532
+        with:
+          type: deploymentStack
+          operation: validate
+          name: repro-stack
+          scope: resourceGroup
+          subscription-id: ${{ env.SUB }}
+          resource-group-name: ${{ env.RG }}
+          template-file: main.json
+          action-on-unmanage-resources: delete
+          deny-settings-mode: none
+
+      - name: 6 deployment create @01859ee (PR 360)
+        if: always()
+        uses: azure/bicep-deploy@01859ee1fa3dd81eca9f2fe88da19faf52a0b532
+        with:
+          type: deployment
+          operation: create
+          scope: resourceGroup
+          subscription-id: ${{ env.SUB }}
+          resource-group-name: ${{ env.RG }}
+          template-file: main.json
+
+      - name: 7 deployment validate @01859ee (PR 360)
+        if: always()
+        uses: azure/bicep-deploy@01859ee1fa3dd81eca9f2fe88da19faf52a0b532
+        with:
+          type: deployment
+          operation: validate
           scope: resourceGroup
           subscription-id: ${{ env.SUB }}
           resource-group-name: ${{ env.RG }}
